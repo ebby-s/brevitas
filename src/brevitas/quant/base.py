@@ -11,6 +11,8 @@ from brevitas.core.function_wrapper import OverOutputChannelView
 from brevitas.core.function_wrapper import RoundToZeroSte
 from brevitas.core.function_wrapper import TensorClamp
 from brevitas.core.function_wrapper import TensorClampSte
+from brevitas.core.function_wrapper import FloorSte
+from brevitas.core.function_wrapper import Identity
 from brevitas.core.function_wrapper.ops_ste import CeilSte
 from brevitas.core.function_wrapper.shape import StatsInputViewShapeImpl
 from brevitas.core.quant import ClampedBinaryQuant
@@ -55,11 +57,16 @@ from brevitas.quant.solver.weight import SolveWeightScalingStatsInputDimsFromMod
 
 __all__ = [
     'MaxStatsScaling',
+    'PercentileStatsScaling',
     'MinMaxStatsScaling',
     'ParamFromRuntimePercentileScaling',
     'ParamFromRuntimePercentileIntervalScaling',
     'ParamFromRuntimeMinMaxScaling',
     'ParamMinMaxInitScaling',
+    'FloatQuant',
+    'PerTensorFPPoTScalingE3M2',
+    'PerChannelFPPoTScalingE3M2',
+    'PerBlockFPPoTScalingE3M2',
     'IntQuant',
     'NarrowIntQuant',
     'UintQuant',
@@ -69,6 +76,7 @@ __all__ = [
     'PerTensorFloatScaling8bit',
     'PerTensorPoTScaling8bit',
     'PerChannelPoTScaling8bit',
+    'PerBlockPoTScaling8bit',
     'SignedBinaryClampedConst',
     'WeightPerTensorFloatDecoupledL2Param',
     'WeightPerChannelFloatDecoupled',
@@ -87,6 +95,15 @@ class MaxStatsScaling(ExtendedInjector):
     """
     scaling_impl_type = ScalingImplType.STATS
     scaling_stats_op = StatsOp.MAX
+    scaling_min_val = 1e-10
+
+
+class PercentileStatsScaling(ExtendedInjector):
+    """
+    """
+    scaling_impl_type = ScalingImplType.STATS
+    scaling_stats_op = StatsOp.PERCENTILE
+    high_percentile_q = 99.999
     scaling_min_val = 1e-10
 
 
@@ -154,6 +171,52 @@ class ParamMinMaxInitScaling(ExtendedInjector):
     """
     """
     scaling_impl_type = ScalingImplType.PARAMETER
+
+
+class FloatQuant(ExtendedInjector):
+    """
+    """
+    quant_type = QuantType.MF
+    bit_width_impl_type = BitWidthImplType.CONST
+    float_to_int_impl_type = FloatToIntImplType.ROUND
+    narrow_range = True
+    signed = True
+    nan_e5m2 = False
+    nan_e4m3 = False
+    zero_point_impl = ZeroZeroPoint
+
+
+class PerTensorFPPoTScalingE3M2(ExtendedInjector):
+    """
+    """
+    scaling_per_output_channel = False
+    restrict_scaling_type = RestrictValueType.FP_POWER_OF_TWO
+    exp_width = 3
+    man_width = 2
+    restrict_value_float_to_int_impl = FloorSte
+
+
+class PerChannelFPPoTScalingE3M2(ExtendedInjector):
+    """
+    """
+    scaling_per_output_channel = True
+    restrict_scaling_type = RestrictValueType.FP_POWER_OF_TWO
+    exp_width = 3
+    man_width = 2
+    restrict_value_float_to_int_impl = FloorSte
+
+
+class PerBlockFPPoTScalingE3M2(ExtendedInjector):
+    """
+    """
+    scaling_per_block = True
+    scaling_per_output_channel = True
+    restrict_scaling_type = RestrictValueType.FP_POWER_OF_TWO
+    exp_width = 3
+    man_width = 2
+    restrict_value_float_to_int_impl = FloorSte
+    block_size = 32
+    scaling_stats_input_view_shape_impl = Identity
 
 
 class IntQuant(ExtendedInjector):
@@ -237,12 +300,25 @@ class PerTensorFloatScaling8bit(ExtendedInjector):
     bit_width = 8
 
 
+class PerBlockPoTScaling8bit(ExtendedInjector):
+    """
+    """
+    scaling_per_output_channel = True
+    restrict_scaling_type = RestrictValueType.POWER_OF_TWO
+    bit_width = 8
+    restrict_value_float_to_int_impl = CeilSte
+    scaling_per_block = True
+    block_size = 32
+    scaling_stats_input_view_shape_impl = Identity
+
+
 class PerChannelPoTScaling8bit(ExtendedInjector):
     """
     """
     scaling_per_output_channel = True
-    restrict_scaling_type = RestrictValueType.FP
+    restrict_scaling_type = RestrictValueType.POWER_OF_TWO
     bit_width = 8
+    restrict_value_float_to_int_impl = CeilSte
 
 
 class PerTensorPoTScaling8bit(ExtendedInjector):

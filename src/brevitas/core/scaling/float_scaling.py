@@ -9,6 +9,7 @@ from torch import Tensor
 import brevitas
 from brevitas.core.utils import StatelessBuffer
 from brevitas.function.ops import max_float
+from brevitas.function.ops import max_exp
 
 
 class FloatScaling(brevitas.jit.ScriptModule):
@@ -30,3 +31,15 @@ class FloatScaling(brevitas.jit.ScriptModule):
     @brevitas.jit.script_method
     def forward(self, input: torch.Tensor) -> Tensor:
         return self.max_float_val()
+
+
+class PowerOfTwoFloatScaling(brevitas.jit.ScriptModule):
+    __constants__ = ['nan_e5m2']
+
+    def __init__(self, nan_e5m2: bool):
+        super(PowerOfTwoFloatScaling, self).__init__()
+        self.nan_e5m2 = nan_e5m2
+
+    @brevitas.jit.script_method
+    def forward(self, exp_width: Tensor, man_width: Tensor) -> Tensor:
+        return 2**(max_exp(exp_width, self.nan_e5m2) + (man_width-1))

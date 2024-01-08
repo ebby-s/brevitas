@@ -6,7 +6,6 @@ from brevitas.core.function_wrapper import *
 from brevitas.core.function_wrapper.learned_round import LearnedRoundHardSigmoid
 from brevitas.core.function_wrapper.learned_round import LearnedRoundSigmoid
 from brevitas.core.function_wrapper.learned_round import LearnedRoundSte
-from brevitas.core.function_wrapper.stochastic_round import StochasticRoundSte
 from brevitas.core.quant import *
 from brevitas.core.quant import QuantType
 from brevitas.core.restrict_val import *
@@ -63,12 +62,28 @@ def solve_bit_width_impl_from_enum(impl_type):
         raise Exception(f"{impl_type} not recognized.")
 
 
+def solve_exp_width_impl_from_enum(impl_type):
+    if impl_type == BitWidthImplType.CONST:
+        return ExpWidthConst
+    else:
+        raise Exception(f"{impl_type} not recognized.")
+
+
+def solve_man_width_impl_from_enum(impl_type):
+    if impl_type == BitWidthImplType.CONST:
+        return ManWidthConst
+    else:
+        raise Exception(f"{impl_type} not recognized.")
+
+
 def solve_restrict_value_impl_from_enum(impl_type):
     if impl_type == RestrictValueType.FP:
         return FloatRestrictValue
     elif impl_type == RestrictValueType.LOG_FP:
         return LogFloatRestrictValue
     elif impl_type == RestrictValueType.POWER_OF_TWO:
+        return PowerOfTwoRestrictValue
+    elif impl_type == RestrictValueType.FP_POWER_OF_TWO:
         return PowerOfTwoRestrictValue
     else:
         raise RuntimeError(f"{impl_type} not recognized.")
@@ -86,6 +101,14 @@ class SolveBitWidthImplFromEnum(ExtendedInjector):
     @value
     def bit_width_impl(bit_width_impl_type):
         return solve_bit_width_impl_from_enum(bit_width_impl_type)
+
+    @value
+    def exp_width_impl(bit_width_impl_type):
+        return solve_exp_width_impl_from_enum(bit_width_impl_type)
+    
+    @value
+    def man_width_impl(bit_width_impl_type):
+        return solve_man_width_impl_from_enum(bit_width_impl_type)
 
 
 class SolveScalingStatsOpFromEnum(ExtendedInjector):
@@ -118,6 +141,8 @@ class SolveAffineRescalingFromEnum(ExtendedInjector):
     def affine_rescaling(scaling_impl_type):
         if scaling_impl_type == ScalingImplType.STATS:
             return False
+        elif scaling_impl_type == ScalingImplType.DYNAMIC_STATS:
+            return False
         elif scaling_impl_type == ScalingImplType.AFFINE_STATS:
             return True
         else:
@@ -130,6 +155,8 @@ class SolveIntQuantFromEnum(ExtendedInjector):
     def int_quant(quant_type):
         if quant_type == QuantType.INT:
             return IntQuant
+        elif quant_type == QuantType.MF:
+            return FloatQuant
         else:
             return None
 
@@ -154,6 +181,13 @@ class SolveTensorQuantFloatToIntImplFromEnum(ExtendedInjector):
         return torch.full(tracked_parameter_list[0].shape, 0.)
 
 
+class SolveTensorQuantFloatToIntImplFromEnum(ExtendedInjector):
+
+    @value
+    def float_to_int_impl(float_to_int_impl_type):
+        return solve_float_to_int_impl_from_enum(float_to_int_impl_type)
+
+
 class SolveIntScalingImplFromEnum(ExtendedInjector):
 
     @value
@@ -164,6 +198,8 @@ class SolveIntScalingImplFromEnum(ExtendedInjector):
             return IntScaling
         elif restrict_scaling_type == RestrictValueType.POWER_OF_TWO:
             return PowerOfTwoIntScaling
+        elif restrict_scaling_type == RestrictValueType.FP_POWER_OF_TWO:
+            return PowerOfTwoFloatScaling
         else:
             raise RuntimeError(f"{restrict_scaling_type} not recognized.")
 

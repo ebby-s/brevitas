@@ -190,14 +190,38 @@ def min_int(signed: bool, narrow_range: bool, bit_width: Tensor) -> Tensor:
 
 
 @brevitas.jit.script
-def max_float(exponent_bit_width: Tensor, mantissa_bit_width: Tensor, exponent_bias: Tensor):
-    max_exponent = (2. ** exponent_bit_width) - 1. - exponent_bias
-    max_mantissa = torch.sum((
-        2. ** torch.arange(
-            0,
-            -1. * mantissa_bit_width - 1.,
-            -1.,
-            dtype=mantissa_bit_width.dtype,
-            device=mantissa_bit_width.device)))
-    max_val = max_mantissa * (2 ** max_exponent)
-    return max_val
+def max_exp(exp_width: Tensor, nan_e5m2: bool = False, bias: bool = False) -> Tensor:
+    """
+    """
+    value = 2**exp_width - 1
+
+    if nan_e5m2: value -= 1
+
+    if bias:
+        exp_bias = 2**(exp_width-1) - 1
+        value -= exp_bias
+
+    return value
+
+
+@brevitas.jit.script
+def max_man(man_width: Tensor, nan_e4m3: bool = False) -> Tensor:
+    """
+    """
+    value = ((2**(man_width+1))-1) * (2**-man_width)
+
+    if nan_e4m3: value -= 1 * (2**-man_width)
+
+    return value
+
+
+@brevitas.jit.script
+def max_float(exponent_bit_width: Tensor, mantissa_bit_width: Tensor, exponent_bias: Tensor, nan_e5m2: bool = False, nan_e4m3: bool = False) -> Tensor:
+    """
+    """
+    exp = max_exp(exponent_bit_width, nan_e5m2) - exponent_bias
+    man = max_man(mantissa_bit_width, nan_e4m3)
+
+    value = man * 2**exp
+
+    return value

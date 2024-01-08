@@ -8,10 +8,12 @@ from torch import Tensor
 from brevitas.core.quant import ClampedBinaryQuant
 from brevitas.core.quant import RescalingIntQuant
 from brevitas.core.quant import TernaryQuant
+from brevitas.core.quant import RescalingFloatQuant
 from brevitas.core.scaling import ConstScaling
 from brevitas.core.scaling import ParameterFromRuntimeStatsScaling
 from brevitas.core.scaling import ParameterScaling
 from brevitas.core.scaling import RuntimeStatsScaling
+from brevitas.core.scaling import DynamicStatsScaling
 from brevitas.core.scaling import SCALAR_SHAPE
 from brevitas.inject import ExtendedInjector
 from brevitas.inject import this
@@ -48,6 +50,8 @@ class SolveActScalingImplFromEnum(SolveAffineRescalingFromEnum):
             return RuntimeStatsScaling
         elif scaling_impl_type == ScalingImplType.AFFINE_STATS:
             return RuntimeStatsScaling
+        elif scaling_impl_type == ScalingImplType.DYNAMIC_STATS:
+            return DynamicStatsScaling
         elif scaling_impl_type == ScalingImplType.HE:
             raise RuntimeError(f"{scaling_impl_type} not supported.")
         else:
@@ -66,6 +70,8 @@ class SolveActTensorQuantFromEnum(SolveIntQuantFromEnum):
             return TernaryQuant
         elif quant_type == QuantType.BINARY:
             return ClampedBinaryQuant
+        elif quant_type == QuantType.MF:
+            return RescalingFloatQuant
         else:
             raise RuntimeError(f'{quant_type} not recognized.')
 

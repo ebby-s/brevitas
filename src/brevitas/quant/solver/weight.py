@@ -29,6 +29,8 @@ class SolveWeightTensorQuantFromEnum(SolveIntQuantFromEnum):
             return TernaryQuant
         elif quant_type == QuantType.BINARY:
             return BinaryQuant
+        elif quant_type == QuantType.MF:
+            return RescalingFloatQuant
         else:
             raise RuntimeError(f'{quant_type} not recognized.')
 
@@ -48,6 +50,17 @@ class SolveWeightScalingPerOutputChannelShapeFromModule(ExtendedInjector):
             assert all(len(m.weight.size()) == len(module[0].weight.size()) for m in module)
             module = module[0]
         return len(module.weight.size())
+
+    @value
+    def weight_dims(module):
+        if isinstance(module, tuple):
+            assert all(len(m.weight.size()) == len(module[0].weight.size()) for m in module)
+            module = module[0]
+        return module.weight.size()
+
+    @value
+    def scaling_per_block_shape(weight_dims):
+        return weight_dims
 
     @value
     def scaling_per_output_channel_shape(weight_ndims, output_channel_dim, out_channels):

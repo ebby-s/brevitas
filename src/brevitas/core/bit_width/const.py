@@ -120,3 +120,31 @@ class MsbClampBitWidth(brevitas.jit.ScriptModule):
         output_bit_width = tensor_clamp_ste(
             output_bit_width, self.min_overall_bit_width(), self.max_overall_bit_width())
         return output_bit_width
+
+
+class ExpWidthConst(brevitas.jit.ScriptModule):
+    """
+    """
+
+    def __init__(self, exp_width: int) -> None:
+        super(ExpWidthConst, self).__init__()
+        assert isinstance(exp_width, int)
+        self.exp_width = StatelessBuffer(torch.tensor(float(exp_width)))
+
+    @brevitas.jit.script_method
+    def forward(self) -> Tensor:
+        return self.exp_width()
+
+
+class ManWidthConst(brevitas.jit.ScriptModule):
+    """
+    """
+
+    def __init__(self, man_width: int) -> None:
+        super(ManWidthConst, self).__init__()
+        assert isinstance(man_width, int)
+        self.man_width = StatelessBuffer(torch.tensor(float(man_width)))
+
+    @brevitas.jit.script_method
+    def forward(self) -> Tensor:
+        return self.man_width()

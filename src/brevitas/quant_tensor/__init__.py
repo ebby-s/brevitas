@@ -183,7 +183,7 @@ class QuantTensor(QuantTensorBase):
                 elif self.bit_width <= 8. and not self.signed_t.item():
                     return int_value.to(torch.uint8)
                 else:
-                    return int_value.to(torch.int32)
+                    return int_value.to(torch.int64)
         else:
             raise RuntimeError(f"QuantTensor not valid.")
 

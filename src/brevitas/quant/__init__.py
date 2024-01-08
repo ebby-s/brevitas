@@ -6,4 +6,6 @@ from .fixed_point import *
 from .none import *
 from .scaled_int import *
 from .shifted_scaled_int import *
+from .scaled_float import *
+from .rt_stat_int import *
 from .ternary import *

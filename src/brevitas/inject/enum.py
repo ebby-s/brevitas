@@ -23,6 +23,7 @@ class QuantType(AutoName):
     TERNARY = auto()
     INT = auto()
     FP = auto()
+    MF = auto()
 
 
 class RestrictValueType(AutoName):
@@ -33,6 +34,7 @@ class RestrictValueType(AutoName):
     LOG_FP = auto()
     INT = auto()
     POWER_OF_TWO = auto()
+    FP_POWER_OF_TWO = auto()
 
 
 class FloatToIntImplType(AutoName):
@@ -65,6 +67,7 @@ class ScalingImplType(AutoName):
     AFFINE_STATS = auto()
     PARAMETER = auto()
     PARAMETER_FROM_STATS = auto()
+    DYNAMIC_STATS = auto()
 
 
 class StatsOp(AutoName):

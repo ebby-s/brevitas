@@ -13,6 +13,7 @@ from brevitas.core.function_wrapper import Identity
 from brevitas.core.restrict_val import _RestrictClampValue
 from brevitas.core.stats import _ParameterListStats
 from brevitas.core.stats import _RuntimeStats
+from brevitas.core.stats import _DynamicStats
 from brevitas.core.stats import DEFAULT_MOMENTUM
 from brevitas.core.utils import ParameterWrapper
 from brevitas.core.utils import StatelessBuffer
@@ -104,6 +105,43 @@ class RuntimeStatsScaling(brevitas.jit.ScriptModule):
         super(RuntimeStatsScaling, self).__init__()
 
         self.runtime_stats = _RuntimeStats(
+            scaling_stats_impl,
+            scaling_shape,
+            scaling_stats_input_view_shape_impl,
+            scaling_stats_momentum,
+            dtype,
+            device)
+        self.stats_scaling_impl = _StatsScaling(
+            restrict_scaling_impl,
+            scaling_shape,
+            scaling_min_val,
+            affine_rescaling,
+            affine_shift_scale,
+            dtype,
+            device)
+
+    @brevitas.jit.script_method
+    def forward(self, x: torch.Tensor):
+        stats = self.runtime_stats(x)
+        return self.stats_scaling_impl(stats)
+
+class DynamicStatsScaling(brevitas.jit.ScriptModule):
+
+    def __init__(
+            self,
+            scaling_stats_impl: Module,
+            scaling_stats_input_view_shape_impl: Module,
+            restrict_scaling_impl: Module,
+            scaling_shape: Tuple[int, ...],
+            affine_rescaling: bool = False,
+            affine_shift_scale: bool = False,
+            scaling_stats_momentum: float = DEFAULT_MOMENTUM,
+            scaling_min_val: Optional[float] = None,
+            dtype: Optional[torch.dtype] = None,
+            device: Optional[torch.device] = None) -> None:
+        super(DynamicStatsScaling, self).__init__()
+
+        self.runtime_stats = _DynamicStats(
             scaling_stats_impl,
             scaling_shape,
             scaling_stats_input_view_shape_impl,

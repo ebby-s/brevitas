@@ -15,4 +15,6 @@ from .int import RescalingIntQuant
 from .int import TruncIntQuant
 from .int_base import DecoupledIntQuant
 from .int_base import IntQuant
+from .float import RescalingFloatQuant
+from .float import FloatQuant
 from .ternary import TernaryQuant

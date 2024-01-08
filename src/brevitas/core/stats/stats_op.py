@@ -43,14 +43,16 @@ class NegativeMinOrZero(brevitas.jit.ScriptModule):
 
 
 class AbsPercentile(brevitas.jit.ScriptModule):
-    __constants__ = ['q', 'stats_reduce_dim', 'keepdim']
+    __constants__ = ['q', 'stats_reduce_dim', 'keepdim', 'block_size']
 
     def __init__(
             self,
             high_percentile_q: float,
             stats_reduce_dim: Optional[int],
             percentile_q=None,
-            keepdim: bool = False):
+            keepdim: bool = False,
+            scaling_per_block: bool = False,
+            block_size: Optional[int] = 32):
         super(AbsPercentile, self).__init__()
         if percentile_q is not None:
             raise RuntimeError("percentile_q is deprecated, please pass high_percentile_q.")
@@ -58,10 +60,30 @@ class AbsPercentile(brevitas.jit.ScriptModule):
         self.q = high_percentile_q
         self.stats_reduce_dim = stats_reduce_dim
         self.keepdim = keepdim
+        self.scaling_per_block = scaling_per_block
+        self.block_size = block_size
 
     @brevitas.jit.script_method
     def forward(self, x: Tensor):
-        if self.stats_reduce_dim is None:
+        if self.scaling_per_block:
+            k = int(math.floor(.01 * self.q * self.block_size + 0.5))
+            # Pad with 0s if dim length not a multiple of block size.
+            orig_shape = list(x.shape)
+            if x.shape[self.stats_reduce_dim] % self.block_size != 0:
+                pad = [0 for i in range(2*len(x.shape))]
+                pad[-1 -2*self.stats_reduce_dim] += self.block_size - (x.shape[self.stats_reduce_dim] % self.block_size)
+                x = torch.nn.functional.pad(x, pad, 'constant', 0)
+            # Reshape and use max.
+            shape = list(x.shape)
+            shape[self.stats_reduce_dim] //= self.block_size
+            shape.insert(self.stats_reduce_dim+1, self.block_size)
+            shaped = x.reshape(tuple(shape))
+            maxed = shaped.abs().kthvalue(k, dim=(self.stats_reduce_dim+1), keepdim=True).values
+            # Form output.
+            expanded = maxed.expand(shaped.shape).reshape(x.shape)
+            unpadded = torch.narrow(expanded, self.stats_reduce_dim, 0, orig_shape[self.stats_reduce_dim])
+            result = unpadded
+        elif self.stats_reduce_dim is None:
             # k is 1-indexed, so round away from zero
             k = int(math.floor(.01 * self.q * x.numel() + 0.5))
             result = x.abs().view(-1).kthvalue(k).values
@@ -154,16 +176,35 @@ class PercentileInterval(brevitas.jit.ScriptModule):
 
 
 class AbsMax(brevitas.jit.ScriptModule):
-    __constants__ = ['stats_reduce_dim']
+    __constants__ = ['stats_reduce_dim', 'block_size']
 
-    def __init__(self, stats_reduce_dim: Optional[int] = None, keepdim: bool = False) -> None:
+    def __init__(self, stats_reduce_dim: Optional[int] = None, keepdim: bool = False, scaling_per_block: bool = False, block_size: Optional[int] = 32) -> None:
         super(AbsMax, self).__init__()
         self.stats_reduce_dim = stats_reduce_dim
         self.keepdim = keepdim
+        self.scaling_per_block = scaling_per_block
+        self.block_size = block_size
 
     @brevitas.jit.script_method
     def forward(self, x: Tensor):
-        if self.stats_reduce_dim is None:
+        if self.scaling_per_block:
+            # Pad with 0s if dim length not a multiple of block size.
+            orig_shape = list(x.shape)
+            if x.shape[self.stats_reduce_dim] % self.block_size != 0:
+                pad = [0 for i in range(2*len(x.shape))]
+                pad[-1 -2*self.stats_reduce_dim] += self.block_size - (x.shape[self.stats_reduce_dim] % self.block_size)
+                x = torch.nn.functional.pad(x, pad, 'constant', 0)
+            # Reshape and use max.
+            shape = list(x.shape)
+            shape[self.stats_reduce_dim] //= self.block_size
+            shape.insert(self.stats_reduce_dim+1, self.block_size)
+            shaped = x.reshape(tuple(shape))
+            maxed = torch.max(torch.abs(shaped), dim=(self.stats_reduce_dim+1), keepdim=True)[0]
+            # Form output.
+            expanded = maxed.expand(shaped.shape).reshape(x.shape)
+            unpadded = torch.narrow(expanded, self.stats_reduce_dim, 0, orig_shape[self.stats_reduce_dim])
+            return unpadded
+        elif self.stats_reduce_dim is None:
             return torch.max(torch.abs(x))
         else:
             return torch.max(torch.abs(x), dim=self.stats_reduce_dim, keepdim=self.keepdim)[0]
@@ -224,15 +265,34 @@ class AbsMaxL2(brevitas.jit.ScriptModule):
 
 
 class AbsAve(brevitas.jit.ScriptModule):
-    __constants__ = ['stats_reduce_dim']
+    __constants__ = ['stats_reduce_dim', 'block_size']
 
-    def __init__(self, stats_reduce_dim: Optional[int] = None) -> None:
+    def __init__(self, stats_reduce_dim: Optional[int] = None, scaling_per_block: bool = False, block_size: Optional[int] = 32) -> None:
         super(AbsAve, self).__init__()
         self.stats_reduce_dim = stats_reduce_dim
+        self.scaling_per_block = scaling_per_block
+        self.block_size = block_size
 
     @brevitas.jit.script_method
     def forward(self, x: Tensor):
-        if self.stats_reduce_dim is None:
+        if self.scaling_per_block:
+            # Pad with 0s if dim length not a multiple of block size.
+            orig_shape = list(x.shape)
+            if x.shape[self.stats_reduce_dim] % self.block_size != 0:
+                pad = [0 for i in range(2*len(x.shape))]
+                pad[-1 -2*self.stats_reduce_dim] += self.block_size - (x.shape[self.stats_reduce_dim] % self.block_size)
+                x = torch.nn.functional.pad(x, pad, 'constant', 0)
+            # Reshape and use max.
+            shape = list(x.shape)
+            shape[self.stats_reduce_dim] //= self.block_size
+            shape.insert(self.stats_reduce_dim+1, self.block_size)
+            shaped = x.reshape(tuple(shape))
+            maxed = torch.mean(torch.abs(shaped), dim=(self.stats_reduce_dim+1), keepdim=True)
+            # Form output.
+            expanded = maxed.expand(shaped.shape).reshape(x.shape)
+            unpadded = torch.narrow(expanded, self.stats_reduce_dim, 0, orig_shape[self.stats_reduce_dim])
+            return unpadded
+        elif self.stats_reduce_dim is None:
             return torch.mean(torch.abs(x))
         else:
             return torch.mean(torch.abs(x), dim=self.stats_reduce_dim)

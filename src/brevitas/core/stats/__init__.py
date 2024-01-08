@@ -21,6 +21,7 @@ from .stats_op import NegativePercentileOrZero
 from .stats_op import PercentileInterval
 from .stats_wrapper import _ParameterListStats
 from .stats_wrapper import _RuntimeStats
+from .stats_wrapper import _DynamicStats
 from .stats_wrapper import _Stats
 from .stats_wrapper import DEFAULT_MOMENTUM
 from .stats_wrapper import SCALAR_SHAPE

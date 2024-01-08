@@ -99,6 +99,8 @@ class SolveParameterScalingImplFromEnum(SolveAffineRescalingFromEnum):
             return ConstScaling
         elif scaling_impl_type == ScalingImplType.STATS:
             return StatsFromParameterScaling
+        elif scaling_impl_type == ScalingImplType.DYNAMIC_STATS:
+            return StatsFromParameterScaling
         elif scaling_impl_type == ScalingImplType.AFFINE_STATS:
             return StatsFromParameterScaling
         else:
@@ -108,10 +110,12 @@ class SolveParameterScalingImplFromEnum(SolveAffineRescalingFromEnum):
 class SolveParameterScalingShape(ExtendedInjector):
 
     @value
-    def scaling_shape(scaling_per_output_channel):
+    def scaling_shape(scaling_per_output_channel, scaling_per_block=False):
         # this pattern of returning this.something allows to resolve scaling_output_channel_shape
         # only when scaling_per_output_channel is True
-        if scaling_per_output_channel:
+        if scaling_per_block:
+            return this.scaling_per_block_shape
+        elif scaling_per_output_channel:
             return this.scaling_per_output_channel_shape
         else:
             return SCALAR_SHAPE
